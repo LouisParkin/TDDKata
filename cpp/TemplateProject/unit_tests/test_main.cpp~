@@ -1,0 +1,115 @@
+#include <QtTest/QtTest>
+#include <QDebug>
+
+#include "test_myclass.h"
+
+/*!
+* Check if the OUTPUT_XML command line argument is present.
+* \param argc The number of command line arguments
+* \param argv The list of command line arguments
+* \return True if OUTPUT_XML argument exists
+*/
+bool must_output_xml(int argc, char** argv)
+{
+    // Iterate over the input arguments, checking if the "OUTPUT_XML" arg exists
+    for (int i = 0; i < argc; i++)
+    {
+        // The current argument
+        QString arg(argv[i]);
+
+        if (arg == "-OUTPUT_XML")
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/*!
+* Strip all file format arguments from the specified arguments and return the
+* remaining arguments in a QStringList.
+* \return a list of commandline arguments that are not result file oriented.
+*/
+QStringList filter_args(int argc, char** argv)
+{
+    // The filtered list of command line arguments
+    QStringList new_args;
+
+    // Iterate over the input arguments, removing all -o, -xml, -xunitxml arguments
+    for (int i = 0; i < argc; i++)
+    {
+        // The current argument
+        QString arg(argv[i]);
+
+        // The previous argument - used to filter -o option with filename and format
+        QString prev = (i > 0) ? QString(argv[i-1]) : QString();
+
+        if (prev != "-o" && arg != "-o" && arg != "-xml" && arg != "-xunitxml"
+                && arg != "-OUTPUT_XML")
+        {
+            new_args.append(arg);
+        }
+    }
+
+    return new_args;
+}
+
+/*!
+* Add the result file and format argument to the command line arguments.
+* The result file name will contain the name of the test class.
+*
+* \return A new list of arguments to be used with the qExec function for
+* test execution that will ensure that test output is written in xml format
+* to an output file that contains the test class name as part of the filename.
+*/
+QStringList get_test_execution_args(QObject* test_class, QStringList filtered_args)
+{
+    QStringList new_args = QStringList(filtered_args);
+    new_args.append("-o");
+    new_args.append(QString("result-%1.xml,xunitxml").arg(test_class->metaObject()->className()));
+
+    return new_args;
+}
+
+/*!
+* Execute the specified test. Test output will be written with the -o option, using a filename that contains the test name in XML file format.
+* \param test The test to run
+* \param filter_args The command line arguments, stripped of output file and format arguments.
+* \return The exit code of the test.
+*/
+int execute_test(QObject* test, QStringList filtered_args)
+{
+    if (filtered_args.size() > 0)
+    {
+        QStringList cmd_line_args = get_test_execution_args(test, filtered_args);
+        qDebug() << "Executing with [" << cmd_line_args << "]";
+
+        return QTest::qExec(test, cmd_line_args);
+    }
+    else
+    {
+        return QTest::qExec(test);
+    }
+}
+
+int main(int argc, char* argv[])
+{
+    QCoreApplication app(argc, argv);
+
+    // A list of all tests.
+    Test_Configuration test_config;
+
+    QStringList args;
+
+    // Check whether to output to XML file or to console
+    if (must_output_xml(argc, argv))
+    {
+        // Get the arguments to execute the tests with.
+        args = filter_args(argc, argv);
+    }
+
+    int result =  execute_test(&test_config, args);
+
+    return result;
+}

@@ -1,0 +1,12 @@
+TEMPLATE = subdirs
+
+SUBDIRS += \
+    xml_lib \
+    xml_lib_unit_tests \
+    
+
+xml_lib_unit_tests.depends += xml_lib
+
+
+
+
